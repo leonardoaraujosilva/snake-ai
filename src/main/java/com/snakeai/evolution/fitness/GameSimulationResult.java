@@ -9,5 +9,6 @@ public record GameSimulationResult(
         int foodEaten,
         double averageDistanceToFood,
         int stepsMovingCloserToFood,
-        int stepsMovingAwayFromFood
+        int stepsMovingAwayFromFood,
+        int totalEfficiencyScore
 ) {}

@@ -5,5 +5,7 @@ public record GenerationSummary(
         double bestFitness,
         double averageFitness,
         double worstFitness,
-        int bestScore
+        int bestScore,
+        double bestFitnessEver,
+        double averageEliteFitness
 ) {}

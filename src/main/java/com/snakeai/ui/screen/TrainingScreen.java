@@ -16,6 +16,7 @@ public class TrainingScreen extends JPanel implements TrainingSessionListener {
     private TrainingSession session;
     private ExecutorService trainingExecutor;
 
+    private JLabel lblTitle;
     private JLabel lblGen;
     private JLabel lblBestFit;
     private JLabel lblAvgFit;
@@ -35,10 +36,10 @@ public class TrainingScreen extends JPanel implements TrainingSessionListener {
         headerPanel.setOpaque(false);
         headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-        JLabel titleLabel = new JLabel("Treinamento em Progresso");
-        titleLabel.setFont(new Font("Outfit", Font.BOLD, 24));
-        titleLabel.setForeground(new Color(0, 210, 255));
-        headerPanel.add(titleLabel, BorderLayout.WEST);
+        lblTitle = new JLabel("Treinamento em Progresso");
+        lblTitle.setFont(new Font("Outfit", Font.BOLD, 24));
+        lblTitle.setForeground(new Color(0, 210, 255));
+        headerPanel.add(lblTitle, BorderLayout.WEST);
 
         JButton btnBack = createStyledButton("Parar & Voltar", new Color(255, 65, 54));
         btnBack.addActionListener(e -> stopAndGoBack());
@@ -59,7 +60,7 @@ public class TrainingScreen extends JPanel implements TrainingSessionListener {
         lblGen = createStatLabel("Geração: 0");
         lblBestFit = createStatLabel("Melhor Fitness: 0.00");
         lblAvgFit = createStatLabel("Fitness Médio: 0.00");
-        lblBestScore = createStatLabel("Melhor Score: 0");
+        lblBestScore = createStatLabel("Melhor Comida: 0");
 
         sidebar.add(lblGen);
         sidebar.add(lblBestFit);
@@ -77,10 +78,11 @@ public class TrainingScreen extends JPanel implements TrainingSessionListener {
         this.session = session;
         this.session.addListener(this);
 
+        lblTitle.setText("Treinamento em Progresso: " + session.getName());
         lblGen.setText("Geração: " + session.getCurrentGeneration());
         lblBestFit.setText(String.format("Melhor Fitness: %.2f", session.getBestFitnessEver()));
         lblAvgFit.setText("Fitness Médio: 0.00");
-        lblBestScore.setText("Melhor Score: " + session.getBestScoreEver());
+        lblBestScore.setText(String.format("<html>Melhor Comida: %d<br><span style='font-size:12px;color:#888899'>(Gen: %d)</span></html>", session.getBestScoreEver(), session.getBestScoreGeneration()));
         chart.updateData(session.getStatistics().getHistory());
         btnPauseResume.setText("Pausar");
     }
@@ -153,7 +155,7 @@ public class TrainingScreen extends JPanel implements TrainingSessionListener {
             lblGen.setText("Geração: " + summary.generation());
             lblBestFit.setText(String.format("Melhor Fitness: %.2f", summary.bestFitness()));
             lblAvgFit.setText(String.format("Fitness Médio: %.2f", summary.averageFitness()));
-            lblBestScore.setText("Melhor Score: " + session.getBestScoreEver());
+            lblBestScore.setText(String.format("<html>Melhor Comida: %d<br><span style='font-size:12px;color:#888899'>(Gen: %d)</span></html>", session.getBestScoreEver(), session.getBestScoreGeneration()));
             chart.updateData(session.getStatistics().getHistory());
         });
     }

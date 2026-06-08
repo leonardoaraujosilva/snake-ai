@@ -12,6 +12,9 @@ public record TrainingConfig(
         int boardHeight,
         int visionWindowSize,
         EvolutionMode evolutionMode,
+        EliteSelectionMode eliteSelectionMode,
+        int evaluationsPerIndividual,
+        int evaluationThreads,
         List<Integer> hiddenLayerSizes
 ) {
     public static TrainingConfig createDefault() {
@@ -25,6 +28,9 @@ public record TrainingConfig(
                 20,
                 11,
                 EvolutionMode.CROSSOVER_AND_MUTATION,
+                EliteSelectionMode.UNIFORM,
+                3,
+                Runtime.getRuntime().availableProcessors(),
                 List.of(128, 64, 32)
         );
     }

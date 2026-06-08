@@ -11,6 +11,7 @@ import com.snakeai.evolution.encoder.HeadCenteredLocalVisionEncoder;
 import com.snakeai.evolution.fitness.BalancedFitnessStrategy;
 import com.snakeai.evolution.fitness.FitnessEvaluatorAdapter;
 import com.snakeai.evolution.fitness.FitnessStrategy;
+import com.snakeai.evolution.fitness.IndividualEvaluationResult;
 import com.snakeai.genetic.algorithm.GeneticAlgorithm;
 import com.snakeai.genetic.algorithm.Individual;
 import com.snakeai.genetic.algorithm.Population;
@@ -31,6 +32,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TrainingSession implements Runnable {
@@ -46,6 +52,7 @@ public class TrainingSession implements Runnable {
     private int currentGeneration;
     private double bestFitnessEver;
     private int bestScoreEver;
+    private int bestScoreGeneration;
     private Population currentPopulation;
 
     // Adapters / Strategies
@@ -64,6 +71,7 @@ public class TrainingSession implements Runnable {
         this.currentGeneration = 0;
         this.bestFitnessEver = 0.0;
         this.bestScoreEver = 0;
+        this.bestScoreGeneration = 0;
 
         this.encoder = new HeadCenteredLocalVisionEncoder();
         this.fitnessStrategy = new BalancedFitnessStrategy();
@@ -84,6 +92,7 @@ public class TrainingSession implements Runnable {
         this.currentGeneration = metadata.currentGeneration();
         this.bestFitnessEver = metadata.bestFitness();
         this.bestScoreEver = metadata.bestScore();
+        this.bestScoreGeneration = metadata.bestScoreGeneration();
 
         this.encoder = new HeadCenteredLocalVisionEncoder();
         this.fitnessStrategy = new BalancedFitnessStrategy();
@@ -119,6 +128,7 @@ public class TrainingSession implements Runnable {
                 config.mutationRate(),
                 config.mutationAmplitude(),
                 config.evolutionMode(),
+                config.eliteSelectionMode(),
                 random
         );
         this.currentPopulation = ga.evolve(parentsPopulation);
@@ -152,6 +162,10 @@ public class TrainingSession implements Runnable {
         return bestScoreEver;
     }
 
+    public int getBestScoreGeneration() {
+        return bestScoreGeneration;
+    }
+
     public void setPaused(boolean paused) {
         this.paused.set(paused);
     }
@@ -179,11 +193,22 @@ public class TrainingSession implements Runnable {
                     continue;
                 }
 
+                long genStart = System.nanoTime();
+
+                // --- Phase 1: Fitness Evaluation ---
+                long evalStart = System.nanoTime();
                 evaluateGeneration();
+                long evalMs = (System.nanoTime() - evalStart) / 1_000_000;
+
+                // --- Phase 2: Persistence (checkpoint to disk) ---
+                long saveStart = System.nanoTime();
                 saveCheckpoint();
+                long saveMs = (System.nanoTime() - saveStart) / 1_000_000;
+
                 currentGeneration++;
 
-                // Evolve for the next generation
+                // --- Phase 3: Evolution (crossover + mutation) ---
+                long evoStart = System.nanoTime();
                 GeneticAlgorithm ga = new GeneticAlgorithm(
                         config.populationSize(),
                         config.elitismCount(),
@@ -191,9 +216,23 @@ public class TrainingSession implements Runnable {
                         config.mutationRate(),
                         config.mutationAmplitude(),
                         config.evolutionMode(),
+                        config.eliteSelectionMode(),
                         random
                 );
                 currentPopulation = ga.evolve(currentPopulation);
+                long evoMs = (System.nanoTime() - evoStart) / 1_000_000;
+
+                long totalMs = (System.nanoTime() - genStart) / 1_000_000;
+
+                // --- Timing Report ---
+                System.out.printf(
+                    "[GEN %04d] Total: %dms | Fitness: %dms (%.1f%%) | Persist: %dms (%.1f%%) | Evolution: %dms (%.1f%%)%n",
+                    currentGeneration - 1,
+                    totalMs,
+                    evalMs,  (totalMs > 0 ? evalMs * 100.0 / totalMs : 0),
+                    saveMs,  (totalMs > 0 ? saveMs * 100.0 / totalMs : 0),
+                    evoMs,   (totalMs > 0 ? evoMs  * 100.0 / totalMs : 0)
+                );
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -205,19 +244,53 @@ public class TrainingSession implements Runnable {
         }
     }
 
+
     private void evaluateGeneration() {
         long seed = random.nextLong();
         FitnessEvaluatorAdapter evaluator = new FitnessEvaluatorAdapter(config, fitnessStrategy, seed);
 
+        List<Individual> individuals = currentPopulation.getIndividuals();
+        int numThreads = Math.max(1, config.evaluationThreads());
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+
+        // Build one Callable per individual — each is fully independent
+        List<Callable<IndividualEvaluationResult>> tasks = new ArrayList<>(individuals.size());
+        for (Individual individual : individuals) {
+            tasks.add(() -> evaluator.evaluate(individual));
+        }
+
+        // Submit all tasks and collect futures
+        List<Future<IndividualEvaluationResult>> futures;
+        try {
+            futures = executor.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
+            throw new RuntimeException("Evaluation interrupted", e);
+        } finally {
+            executor.shutdown();
+        }
+
+        // Collect results — iterate in same order as individuals list
         double sumFitness = 0.0;
         double bestFitness = -1.0;
         double worstFitness = Double.MAX_VALUE;
         Individual bestIndividual = null;
         int bestScore = 0;
 
-        // Evaluate each individual
-        for (Individual individual : currentPopulation.getIndividuals()) {
-            double fitness = evaluator.evaluate(individual);
+        for (int i = 0; i < individuals.size(); i++) {
+            Individual individual = individuals.get(i);
+            IndividualEvaluationResult result;
+            try {
+                result = futures.get(i).get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Result collection interrupted", e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException("Error evaluating individual", e.getCause());
+            }
+
+            double fitness = result.averageFitness();
             individual.setFitness(fitness);
 
             sumFitness += fitness;
@@ -229,58 +302,52 @@ public class TrainingSession implements Runnable {
                 worstFitness = fitness;
             }
 
-            // Simple test run to get its score
-            int score = simulateToGetScore(individual, seed);
+            // Score comes directly from the first evaluation run — no extra simulation needed
+            int score = result.scoreFromFirstRun();
             if (score > bestScore) {
                 bestScore = score;
             }
         }
 
         double averageFitness = sumFitness / config.populationSize();
+
+        currentPopulation.sortByFitnessDescending();
+        double sumEliteFitness = 0.0;
+        int numElites = Math.min(config.elitismCount(), individuals.size());
+        for (int i = 0; i < numElites; i++) {
+            sumEliteFitness += individuals.get(i).getFitness();
+        }
+        double averageEliteFitness = numElites > 0 ? sumEliteFitness / numElites : 0.0;
+
+        boolean newFitnessRecord = false;
+        if (bestFitness > bestFitnessEver) {
+            bestFitnessEver = bestFitness;
+            newFitnessRecord = true;
+        }
+        if (bestScore > bestScoreEver) {
+            bestScoreEver = bestScore;
+            bestScoreGeneration = currentGeneration;
+        }
+
         GenerationSummary summary = new GenerationSummary(
                 currentGeneration,
                 bestFitness,
                 averageFitness,
                 worstFitness,
-                bestScore
+                bestScore,
+                bestFitnessEver,
+                averageEliteFitness
         );
         statistics.addSummary(summary);
 
-        boolean newRecord = false;
-        if (bestFitness > bestFitnessEver) {
-            bestFitnessEver = bestFitness;
-            newRecord = true;
-        }
-        if (bestScore > bestScoreEver) {
-            bestScoreEver = bestScore;
-            newRecord = true;
-        }
-
-        if (newRecord && bestIndividual != null) {
+        // Somente salva replay se houve NOVO recorde de FITNESS.
+        if (newFitnessRecord && bestIndividual != null) {
             saveBestIndividualReplay(bestIndividual, seed, bestScore);
         }
 
         notifyListenersOnGeneration(summary);
     }
 
-    private int simulateToGetScore(Individual individual, long seed) {
-        NeuralNetwork brain = NeuralNetworkFactory.createNetwork(
-                encoder.getInputSize(config),
-                config.hiddenLayerSizes(),
-                4
-        );
-        brain.setWeights(individual.getGenome());
-        SnakeAgent agent = new SnakeAgent(brain, encoder, config);
-
-        GameEngine engine = new GameEngine(config.boardWidth(), config.boardHeight(), seed);
-        GameState state = engine.getGameState();
-
-        while (!state.isGameOver()) {
-            Direction dir = agent.chooseDirection(state);
-            engine.step(dir);
-        }
-        return state.getScore();
-    }
 
     private void saveBestIndividualReplay(Individual individual, long seed, int finalScore) {
         NeuralNetwork brain = NeuralNetworkFactory.createNetwork(
@@ -337,6 +404,7 @@ public class TrainingSession implements Runnable {
                 currentGeneration,
                 bestFitnessEver,
                 bestScoreEver,
+                bestScoreGeneration,
                 config
         );
 

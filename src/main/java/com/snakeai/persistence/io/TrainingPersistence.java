@@ -1,5 +1,6 @@
 package com.snakeai.persistence.io;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.snakeai.persistence.model.TrainingCheckpoint;
@@ -15,7 +16,9 @@ import java.util.stream.Stream;
 
 public class TrainingPersistence {
     private static final String BASE_DIR_NAME = "trainings";
-    private static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     private static Path getBaseDirectory() {
         return Paths.get(BASE_DIR_NAME);

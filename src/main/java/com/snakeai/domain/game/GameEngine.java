@@ -11,6 +11,8 @@ public class GameEngine {
     private final Set<String> stateHistory;
     private boolean cycleDetected;
     private boolean timeLimitExceeded;
+    private boolean cycleDetectionEnabled = true;
+    private boolean timeLimitEnabled = true;
 
     public GameEngine(int boardWidth, int boardHeight, long seed) {
         this.random = new Random(seed);
@@ -39,6 +41,14 @@ public class GameEngine {
         return timeLimitExceeded;
     }
 
+    public void setCycleDetectionEnabled(boolean enabled) {
+        this.cycleDetectionEnabled = enabled;
+    }
+
+    public void setTimeLimitEnabled(boolean enabled) {
+        this.timeLimitEnabled = enabled;
+    }
+
     public void step(Direction direction) {
         if (gameState.isGameOver()) {
             return;
@@ -47,7 +57,7 @@ public class GameEngine {
         gameState.incrementTotalSteps();
         gameState.incrementStepsSinceLastFood();
 
-        if (hasExceededTimeLimit()) {
+        if (timeLimitEnabled && hasExceededTimeLimit()) {
             timeLimitExceeded = true;
             gameState.setGameOver(true);
             return;
@@ -106,6 +116,8 @@ public class GameEngine {
     }
 
     private void recordStateAndCheckCycle() {
+        if (!cycleDetectionEnabled) return;
+        
         String signature = buildStateString();
         if (stateHistory.contains(signature)) {
             cycleDetected = true;

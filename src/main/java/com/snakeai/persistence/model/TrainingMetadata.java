@@ -10,5 +10,6 @@ public record TrainingMetadata(
         int currentGeneration,
         double bestFitness,
         int bestScore,
+        int bestScoreGeneration,
         TrainingConfig config
 ) {}

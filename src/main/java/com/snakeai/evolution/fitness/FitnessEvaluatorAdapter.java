@@ -9,13 +9,10 @@ import com.snakeai.evolution.agent.SnakeAgent;
 import com.snakeai.evolution.encoder.GameStateEncoder;
 import com.snakeai.evolution.encoder.HeadCenteredLocalVisionEncoder;
 import com.snakeai.genetic.algorithm.Individual;
-import com.snakeai.genetic.algorithm.FitnessEvaluator;
 import com.snakeai.neural.network.NeuralNetwork;
 import com.snakeai.neural.network.NeuralNetworkFactory;
 
-import java.util.Random;
-
-public class FitnessEvaluatorAdapter implements FitnessEvaluator {
+public class FitnessEvaluatorAdapter {
     private final TrainingConfig config;
     private final GameStateEncoder encoder;
     private final FitnessStrategy fitnessStrategy;
@@ -32,9 +29,11 @@ public class FitnessEvaluatorAdapter implements FitnessEvaluator {
         this.evaluationSeed = evaluationSeed;
     }
 
-    @Override
-    public double evaluate(Individual individual) {
-        // Build brain from genome
+    /**
+     * Evaluates the individual over N simulations and returns both the average fitness
+     * and the score from the first run — avoiding a redundant extra simulation.
+     */
+    public IndividualEvaluationResult evaluate(Individual individual) {
         NeuralNetwork brain = NeuralNetworkFactory.createNetwork(
                 encoder.getInputSize(config),
                 config.hiddenLayerSizes(),
@@ -44,14 +43,23 @@ public class FitnessEvaluatorAdapter implements FitnessEvaluator {
 
         SnakeAgent agent = new SnakeAgent(brain, encoder, config);
 
-        // Run simulation 3 times for robustness to avoid lucky seeds
+        // Run N simulations as configured, to reduce the impact of lucky food spawns
         double totalFitness = 0.0;
-        int numEvaluations = 3;
+        int numEvaluations = config.evaluationsPerIndividual();
+        int scoreFromFirstRun = 0;
+
         for (int i = 0; i < numEvaluations; i++) {
             GameSimulationResult result = runSimulation(agent, evaluationSeed + i);
             totalFitness += fitnessStrategy.calculateFitness(result);
+
+            // Capture score from the first run to avoid an extra simulation call
+            if (i == 0) {
+                scoreFromFirstRun = result.score();
+            }
         }
-        return totalFitness / numEvaluations;
+
+        double averageFitness = totalFitness / numEvaluations;
+        return new IndividualEvaluationResult(averageFitness, scoreFromFirstRun);
     }
 
     private GameSimulationResult runSimulation(SnakeAgent agent, long seed) {
@@ -61,6 +69,10 @@ public class FitnessEvaluatorAdapter implements FitnessEvaluator {
         int closerSteps = 0;
         int awaySteps = 0;
         double distanceSum = 0;
+        
+        int currentScore = state.getScore();
+        int totalEfficiencyScore = 0;
+        int efficiencyCounter = 100;
 
         while (!state.isGameOver()) {
             Position head = state.getSnake().getHead();
@@ -69,6 +81,15 @@ public class FitnessEvaluatorAdapter implements FitnessEvaluator {
 
             Direction dir = agent.chooseDirection(state);
             engine.step(dir);
+            efficiencyCounter--;
+
+            if (state.getScore() > currentScore) {
+                if (efficiencyCounter > 0) {
+                    totalEfficiencyScore += efficiencyCounter;
+                }
+                efficiencyCounter = 100;
+                currentScore = state.getScore();
+            }
 
             if (!state.isGameOver()) {
                 Position newHead = state.getSnake().getHead();
@@ -94,7 +115,8 @@ public class FitnessEvaluatorAdapter implements FitnessEvaluator {
                 state.getScore(),
                 averageDistance,
                 closerSteps,
-                awaySteps
+                awaySteps,
+                totalEfficiencyScore
         );
     }
 

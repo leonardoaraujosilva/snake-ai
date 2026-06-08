@@ -1,5 +1,6 @@
 package com.snakeai.genetic.algorithm;
 
+import com.snakeai.config.EliteSelectionMode;
 import com.snakeai.config.EvolutionMode;
 import com.snakeai.genetic.crossover.BlendedCrossover;
 import com.snakeai.genetic.mutation.UniformMutation;
@@ -16,6 +17,7 @@ public class GeneticAlgorithm {
     private final BlendedCrossover crossover;
     private final UniformMutation mutation;
     private final EvolutionMode evolutionMode;
+    private final EliteSelectionMode eliteSelectionMode;
     private final Random random;
 
     public GeneticAlgorithm(
@@ -25,6 +27,7 @@ public class GeneticAlgorithm {
             double mutationRate,
             double mutationAmplitude,
             EvolutionMode evolutionMode,
+            EliteSelectionMode eliteSelectionMode,
             Random random
     ) {
         this.populationSize = populationSize;
@@ -33,6 +36,7 @@ public class GeneticAlgorithm {
         this.crossover = new BlendedCrossover(random);
         this.mutation = new UniformMutation(mutationRate, mutationAmplitude, random);
         this.evolutionMode = evolutionMode;
+        this.eliteSelectionMode = eliteSelectionMode;
         this.random = random;
     }
 
@@ -58,9 +62,9 @@ public class GeneticAlgorithm {
             Individual child;
 
             if (evolutionMode == EvolutionMode.PURE_MUTATION) {
-                // Mutate only from the elite pool (or population if no elitism)
+                // Mutate only from the elite pool (or full population if no elitism)
                 List<Individual> pool = elites.isEmpty() ? currentPopulation.getIndividuals() : elites;
-                Individual parent = pool.get(random.nextInt(pool.size()));
+                Individual parent = selectFromElitePool(pool);
                 child = new Individual(parent.getGenome().clone());
                 mutation.mutate(child);
             } else {
@@ -75,5 +79,36 @@ public class GeneticAlgorithm {
         }
 
         return new Population(nextGeneration);
+    }
+
+    /**
+     * Selects a parent from the elite pool.
+     * UNIFORM: every elite has the same probability of being selected.
+     * WEIGHTED: probability is proportional to fitness — better elites generate more offspring.
+     */
+    private Individual selectFromElitePool(List<Individual> pool) {
+        if (eliteSelectionMode == EliteSelectionMode.UNIFORM) {
+            return pool.get(random.nextInt(pool.size()));
+        }
+
+        // WEIGHTED: roulette wheel proportional to fitness
+        double totalFitness = pool.stream().mapToDouble(Individual::getFitness).sum();
+
+        // Fallback to uniform if all fitnesses are zero
+        if (totalFitness <= 0.0) {
+            return pool.get(random.nextInt(pool.size()));
+        }
+
+        double threshold = random.nextDouble() * totalFitness;
+        double accumulated = 0.0;
+        for (Individual candidate : pool) {
+            accumulated += candidate.getFitness();
+            if (accumulated >= threshold) {
+                return candidate;
+            }
+        }
+
+        // Safety fallback
+        return pool.getLast();
     }
 }

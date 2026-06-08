@@ -1,5 +1,6 @@
 package com.snakeai.ui.screen;
 
+import com.snakeai.config.EliteSelectionMode;
 import com.snakeai.config.EvolutionMode;
 import com.snakeai.config.TrainingConfig;
 import com.snakeai.training.TrainingSession;
@@ -21,6 +22,9 @@ public class NewTrainingScreen extends JPanel {
     private JSpinner spinBoardSize;
     private JSpinner spinVisionSize;
     private JComboBox<EvolutionMode> cmbEvolutionMode;
+    private JComboBox<EliteSelectionMode> cmbEliteSelectionMode;
+    private JSpinner spinEvaluationsPerIndividual;
+    private JSpinner spinEvaluationThreads;
     private JTextField txtHiddenLayers;
 
     public NewTrainingScreen(NavigationController navigationController) {
@@ -50,87 +54,148 @@ public class NewTrainingScreen extends JPanel {
         formPanel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.insets = new Insets(6, 8, 6, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Colors
         Color textColor = new Color(200, 200, 220);
+        Color sectionColor = new Color(0, 180, 220);
+        int row = 0;
 
-        // Add inputs
-        gbc.gridx = 0; gbc.gridy = 0;
+        // --- Section: Básico ---
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        formPanel.add(createSectionLabel("▸ Configuração Básica", sectionColor), gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Nome do Treinamento:", textColor), gbc);
         gbc.gridx = 1;
         txtName = new JTextField("treinamento-novo", 15);
-        txtName.setFont(new Font("Inter", Font.PLAIN, 14));
-        txtName.setBackground(new Color(30, 30, 40));
-        txtName.setForeground(Color.WHITE);
-        txtName.setCaretColor(Color.WHITE);
-        txtName.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 60)));
+        styleTextField(txtName);
         formPanel.add(txtName, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Tamanho da População:", textColor), gbc);
         gbc.gridx = 1;
         spinPopSize = new JSpinner(new SpinnerNumberModel(1000, 10, 10000, 50));
         styleSpinner(spinPopSize);
         formPanel.add(spinPopSize, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Elitismo (Indivíduos):", textColor), gbc);
         gbc.gridx = 1;
         spinElitismo = new JSpinner(new SpinnerNumberModel(20, 0, 1000, 2));
         styleSpinner(spinElitismo);
         formPanel.add(spinElitismo, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 3;
-        formPanel.add(createLabel("Taxa de Mutação (%):", textColor), gbc);
-        gbc.gridx = 1;
-        spinMutationRate = new JSpinner(new SpinnerNumberModel(2.0, 0.1, 100.0, 0.5));
-        styleSpinner(spinMutationRate);
-        formPanel.add(spinMutationRate, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 4;
-        formPanel.add(createLabel("Amplitude da Mutação:", textColor), gbc);
-        gbc.gridx = 1;
-        spinMutationAmp = new JSpinner(new SpinnerNumberModel(0.3, 0.01, 5.0, 0.1));
-        styleSpinner(spinMutationAmp);
-        formPanel.add(spinMutationAmp, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Tamanho do Tabuleiro (NxN):", textColor), gbc);
         gbc.gridx = 1;
         spinBoardSize = new JSpinner(new SpinnerNumberModel(20, 5, 50, 1));
         styleSpinner(spinBoardSize);
         formPanel.add(spinBoardSize, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 6;
-        formPanel.add(createLabel("Tamanho da Janela de Visão (Ímpar):", textColor), gbc);
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Janela de Visão (Ímpar):", textColor), gbc);
         gbc.gridx = 1;
         spinVisionSize = new JSpinner(new SpinnerNumberModel(11, 3, 25, 2));
         styleSpinner(spinVisionSize);
         formPanel.add(spinVisionSize, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 7;
+        // --- Section: Mutação ---
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        formPanel.add(createSectionLabel("▸ Mutação", sectionColor), gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Taxa de Mutação (%):", textColor), gbc);
+        gbc.gridx = 1;
+        spinMutationRate = new JSpinner(new SpinnerNumberModel(2.0, 0.1, 100.0, 0.5));
+        styleSpinner(spinMutationRate);
+        formPanel.add(spinMutationRate, gbc);
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Amplitude da Mutação:", textColor), gbc);
+        gbc.gridx = 1;
+        spinMutationAmp = new JSpinner(new SpinnerNumberModel(0.3, 0.01, 5.0, 0.1));
+        styleSpinner(spinMutationAmp);
+        formPanel.add(spinMutationAmp, gbc);
+        row++;
+
+        // --- Section: Evolução ---
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        formPanel.add(createSectionLabel("▸ Modo de Evolução", sectionColor), gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Modo de Evolução:", textColor), gbc);
         gbc.gridx = 1;
         cmbEvolutionMode = new JComboBox<>(EvolutionMode.values());
-        cmbEvolutionMode.setFont(new Font("Inter", Font.PLAIN, 14));
-        cmbEvolutionMode.setBackground(new Color(30, 30, 40));
-        cmbEvolutionMode.setForeground(Color.WHITE);
+        styleComboBox(cmbEvolutionMode);
         formPanel.add(cmbEvolutionMode, gbc);
+        row++;
 
-        gbc.gridx = 0; gbc.gridy = 8;
-        formPanel.add(createLabel("Rede Oculta (Camadas separadas por vírgula):", textColor), gbc);
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Seleção de Elite (Mutação Pura):", textColor), gbc);
+        gbc.gridx = 1;
+        cmbEliteSelectionMode = new JComboBox<>(EliteSelectionMode.values());
+        styleComboBox(cmbEliteSelectionMode);
+        formPanel.add(cmbEliteSelectionMode, gbc);
+        row++;
+
+        // --- Section: Performance ---
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        formPanel.add(createSectionLabel("▸ Performance", sectionColor), gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Avaliações por Indivíduo:", textColor), gbc);
+        gbc.gridx = 1;
+        spinEvaluationsPerIndividual = new JSpinner(new SpinnerNumberModel(3, 1, 10, 1));
+        styleSpinner(spinEvaluationsPerIndividual);
+        formPanel.add(spinEvaluationsPerIndividual, gbc);
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
+        int availableProcs = Runtime.getRuntime().availableProcessors();
+        formPanel.add(createLabel("Threads de Avaliação (CPU: " + availableProcs + "):", textColor), gbc);
+        gbc.gridx = 1;
+        spinEvaluationThreads = new JSpinner(new SpinnerNumberModel(availableProcs, 1, availableProcs * 2, 1));
+        styleSpinner(spinEvaluationThreads);
+        formPanel.add(spinEvaluationThreads, gbc);
+        row++;
+
+        // --- Section: Rede ---
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        formPanel.add(createSectionLabel("▸ Rede Neural", sectionColor), gbc);
+        gbc.gridwidth = 1;
+        row++;
+
+        gbc.gridx = 0; gbc.gridy = row;
+        formPanel.add(createLabel("Camadas Ocultas (separadas por vírgula):", textColor), gbc);
         gbc.gridx = 1;
         txtHiddenLayers = new JTextField("128, 64, 32", 15);
-        txtHiddenLayers.setFont(new Font("Inter", Font.PLAIN, 14));
-        txtHiddenLayers.setBackground(new Color(30, 30, 40));
-        txtHiddenLayers.setForeground(Color.WHITE);
-        txtHiddenLayers.setCaretColor(Color.WHITE);
-        txtHiddenLayers.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 60)));
+        styleTextField(txtHiddenLayers);
         formPanel.add(txtHiddenLayers, gbc);
 
-        add(formPanel, BorderLayout.CENTER);
+        // Wrap the form in a scroll pane so all fields are reachable at any window size
+        JScrollPane scrollPane = new JScrollPane(formPanel);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        add(scrollPane, BorderLayout.CENTER);
 
         // Footer / Button Panel
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
@@ -146,9 +211,25 @@ public class NewTrainingScreen extends JPanel {
 
     private JLabel createLabel(String text, Color color) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Inter", Font.BOLD, 14));
+        label.setFont(new Font("Inter", Font.PLAIN, 13));
         label.setForeground(color);
         return label;
+    }
+
+    private JLabel createSectionLabel(String text, Color color) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Outfit", Font.BOLD, 14));
+        label.setForeground(color);
+        label.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0));
+        return label;
+    }
+
+    private void styleTextField(JTextField field) {
+        field.setFont(new Font("Inter", Font.PLAIN, 14));
+        field.setBackground(new Color(30, 30, 40));
+        field.setForeground(Color.WHITE);
+        field.setCaretColor(Color.WHITE);
+        field.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 60)));
     }
 
     private void styleSpinner(JSpinner spinner) {
@@ -161,6 +242,12 @@ public class NewTrainingScreen extends JPanel {
             textField.setCaretColor(Color.WHITE);
         }
         spinner.setBorder(BorderFactory.createLineBorder(new Color(50, 50, 60)));
+    }
+
+    private <T> void styleComboBox(JComboBox<T> combo) {
+        combo.setFont(new Font("Inter", Font.PLAIN, 14));
+        combo.setBackground(new Color(30, 30, 40));
+        combo.setForeground(Color.WHITE);
     }
 
     private JButton createStyledButton(String text, Color baseColor) {
@@ -176,7 +263,6 @@ public class NewTrainingScreen extends JPanel {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 button.setBackground(baseColor.brighter());
             }
-
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 button.setBackground(baseColor);
             }
@@ -192,14 +278,12 @@ public class NewTrainingScreen extends JPanel {
             return;
         }
 
-        // Validate vision size odd
         int visionSize = (Integer) spinVisionSize.getValue();
         if (visionSize % 2 == 0) {
             JOptionPane.showMessageDialog(this, "O tamanho da janela de visão deve ser um número ímpar (ex: 11).", "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        // Parse layers
         String layersStr = txtHiddenLayers.getText();
         List<Integer> layers = new ArrayList<>();
         try {
@@ -211,7 +295,6 @@ public class NewTrainingScreen extends JPanel {
             return;
         }
 
-        // Gather config
         TrainingConfig config = new TrainingConfig(
                 (Integer) spinPopSize.getValue(),
                 (Integer) spinElitismo.getValue(),
@@ -222,12 +305,14 @@ public class NewTrainingScreen extends JPanel {
                 (Integer) spinBoardSize.getValue(),
                 visionSize,
                 (EvolutionMode) cmbEvolutionMode.getSelectedItem(),
+                (EliteSelectionMode) cmbEliteSelectionMode.getSelectedItem(),
+                (Integer) spinEvaluationsPerIndividual.getValue(),
+                (Integer) spinEvaluationThreads.getValue(),
                 layers
         );
 
         TrainingSession session = new TrainingSession(name, config);
 
-        // Navigate to training screen and start it
         TrainingScreen trainingScreen = (TrainingScreen) navigationController.getScreen("training");
         trainingScreen.setSession(session);
         navigationController.navigateTo("training");

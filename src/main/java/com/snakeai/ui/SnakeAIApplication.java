@@ -18,8 +18,8 @@ public class SnakeAIApplication {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Snake AI - Genetic Algorithm & Neural Network Study Case");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(1024, 720);
-            frame.setMinimumSize(new Dimension(800, 600));
+            frame.setSize(1200, 860);
+            frame.setMinimumSize(new Dimension(900, 700));
             frame.setLocationRelativeTo(null);
 
             NavigationController navigation = new NavigationController(frame);

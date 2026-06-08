@@ -121,9 +121,11 @@ public class BestIndividualScreen extends JPanel {
 
         TrainingConfig config = checkpoint.metadata().config();
 
-        // Create random engine
+        // Create random engine and disable training safety nets for visual playback
         long seed = new Random().nextLong();
         engine = new GameEngine(config.boardWidth(), config.boardHeight(), seed);
+        engine.setCycleDetectionEnabled(false);
+        engine.setTimeLimitEnabled(false);
 
         // Load the best individual's brain
         SavedEliteIndividual best = checkpoint.elite().getFirst();
