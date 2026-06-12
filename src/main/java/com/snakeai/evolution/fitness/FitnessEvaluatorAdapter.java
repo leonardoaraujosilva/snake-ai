@@ -72,7 +72,9 @@ public class FitnessEvaluatorAdapter {
         
         int currentScore = state.getScore();
         int totalEfficiencyScore = 0;
-        int efficiencyCounter = 100;
+        int stepsToFood = 0;
+        Direction previousDirection = null;
+        int directionChanges = 0;
 
         while (!state.isGameOver()) {
             Position head = state.getSnake().getHead();
@@ -80,15 +82,17 @@ public class FitnessEvaluatorAdapter {
             double oldDistance = getManhattanDistance(head, food);
 
             Direction dir = agent.chooseDirection(state);
+            if (previousDirection != null && previousDirection != dir) {
+                directionChanges++;
+            }
+            previousDirection = dir;
             engine.step(dir);
-            efficiencyCounter--;
+            stepsToFood++;
 
             if (state.getScore() > currentScore) {
-                if (efficiencyCounter > 0) {
-                    totalEfficiencyScore += efficiencyCounter;
-                }
-                efficiencyCounter = 100;
                 currentScore = state.getScore();
+                totalEfficiencyScore += Math.max(1, 200 - stepsToFood);
+                stepsToFood = 0;
             }
 
             if (!state.isGameOver()) {
@@ -103,20 +107,22 @@ public class FitnessEvaluatorAdapter {
                 distanceSum += newDistance;
             }
         }
-
-        double averageDistance = state.getTotalSteps() == 0 ? 0 : distanceSum / state.getTotalSteps();
+        double averageStepsPerFood =
+                state.getScore() == 0
+                        ? state.getTotalSteps()
+                        : (double) state.getTotalSteps() / state.getScore();
 
         return new GameSimulationResult(
                 state.getScore(),
                 state.getTotalSteps(),
-                engine.isCycleDetected(),
-                engine.isTimeLimitExceeded(),
+                engine.getGameOverReason(),
                 state.getStepsSinceLastFood(),
                 state.getScore(),
-                averageDistance,
+                averageStepsPerFood,
                 closerSteps,
                 awaySteps,
-                totalEfficiencyScore
+                totalEfficiencyScore,
+                directionChanges
         );
     }
 

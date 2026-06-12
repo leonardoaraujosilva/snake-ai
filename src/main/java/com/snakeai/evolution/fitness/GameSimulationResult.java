@@ -1,14 +1,16 @@
 package com.snakeai.evolution.fitness;
 
+import com.snakeai.domain.game.GameOverReason;
+
 public record GameSimulationResult(
         int score,
         int totalSteps,
-        boolean cycleDetected,
-        boolean timeLimitExceeded,
+        GameOverReason reason,
         int stepsSinceLastFood,
-        int foodEaten,
-        double averageDistanceToFood,
-        int stepsMovingCloserToFood,
-        int stepsMovingAwayFromFood,
-        int totalEfficiencyScore
+        int scoreDuplicate,
+        double averageDistance,
+        int closerSteps,
+        int awaySteps,
+        int totalEfficiencyScore,
+        int directionChanges
 ) {}

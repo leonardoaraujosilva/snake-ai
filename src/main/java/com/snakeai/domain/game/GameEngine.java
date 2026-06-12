@@ -9,16 +9,15 @@ public class GameEngine {
     private final GameState gameState;
     private final Random random;
     private final Set<String> stateHistory;
-    private boolean cycleDetected;
-    private boolean timeLimitExceeded;
+    private GameOverReason gameOverReason;
+
     private boolean cycleDetectionEnabled = true;
     private boolean timeLimitEnabled = true;
 
     public GameEngine(int boardWidth, int boardHeight, long seed) {
         this.random = new Random(seed);
         this.stateHistory = new HashSet<>();
-        this.cycleDetected = false;
-        this.timeLimitExceeded = false;
+        this.gameOverReason = null;
 
         Board board = new Board(boardWidth, boardHeight);
         Position startingHead = new Position(boardHeight / 2, boardWidth / 2);
@@ -33,12 +32,16 @@ public class GameEngine {
         return gameState;
     }
 
+    public GameOverReason getGameOverReason() {
+        return gameOverReason;
+    }
+
     public boolean isCycleDetected() {
-        return cycleDetected;
+        return gameOverReason == GameOverReason.CYCLE_DETECTED;
     }
 
     public boolean isTimeLimitExceeded() {
-        return timeLimitExceeded;
+        return gameOverReason == GameOverReason.TIME_LIMIT_EXCEEDED;
     }
 
     public void setCycleDetectionEnabled(boolean enabled) {
@@ -58,7 +61,7 @@ public class GameEngine {
         gameState.incrementStepsSinceLastFood();
 
         if (timeLimitEnabled && hasExceededTimeLimit()) {
-            timeLimitExceeded = true;
+            this.gameOverReason = GameOverReason.TIME_LIMIT_EXCEEDED;
             gameState.setGameOver(true);
             return;
         }
@@ -69,6 +72,7 @@ public class GameEngine {
         Position newHead = direction.move(snake.getHead());
 
         if (board.isOutside(newHead)) {
+            this.gameOverReason = GameOverReason.WALL_COLLISION;
             gameState.setGameOver(true);
             return;
         }
@@ -76,6 +80,7 @@ public class GameEngine {
         snake.moveHeadTo(newHead);
 
         if (snake.collidesWithItself()) {
+            this.gameOverReason = GameOverReason.SELF_COLLISION;
             gameState.setGameOver(true);
             return;
         }
@@ -117,10 +122,10 @@ public class GameEngine {
 
     private void recordStateAndCheckCycle() {
         if (!cycleDetectionEnabled) return;
-        
+
         String signature = buildStateString();
         if (stateHistory.contains(signature)) {
-            cycleDetected = true;
+            this.gameOverReason = GameOverReason.CYCLE_DETECTED;
             gameState.setGameOver(true);
         } else {
             stateHistory.add(signature);

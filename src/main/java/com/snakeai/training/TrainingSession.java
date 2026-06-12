@@ -8,10 +8,7 @@ import com.snakeai.domain.game.GameState;
 import com.snakeai.evolution.agent.SnakeAgent;
 import com.snakeai.evolution.encoder.GameStateEncoder;
 import com.snakeai.evolution.encoder.HeadCenteredLocalVisionEncoder;
-import com.snakeai.evolution.fitness.BalancedFitnessStrategy;
-import com.snakeai.evolution.fitness.FitnessEvaluatorAdapter;
-import com.snakeai.evolution.fitness.FitnessStrategy;
-import com.snakeai.evolution.fitness.IndividualEvaluationResult;
+import com.snakeai.evolution.fitness.*;
 import com.snakeai.genetic.algorithm.GeneticAlgorithm;
 import com.snakeai.genetic.algorithm.Individual;
 import com.snakeai.genetic.algorithm.Population;
@@ -74,7 +71,7 @@ public class TrainingSession implements Runnable {
         this.bestScoreGeneration = 0;
 
         this.encoder = new HeadCenteredLocalVisionEncoder();
-        this.fitnessStrategy = new BalancedFitnessStrategy();
+        this.fitnessStrategy = new EfficientMovementFitnessStrategy();
 
         initializeNewTraining();
     }
@@ -95,7 +92,7 @@ public class TrainingSession implements Runnable {
         this.bestScoreGeneration = metadata.bestScoreGeneration();
 
         this.encoder = new HeadCenteredLocalVisionEncoder();
-        this.fitnessStrategy = new BalancedFitnessStrategy();
+        this.fitnessStrategy = new EfficientMovementFitnessStrategy();
 
         initializeFromElite(checkpoint.elite());
     }
